@@ -288,7 +288,8 @@
          "viewers/plotly"
          "viewers/table"
          "viewers/tex"
-         "viewers/vega"]))
+         "viewers/vega"
+         "viewers/devcard"]))
 
 (defn build-static-app!
   "Builds a static html app of the notebooks at `paths`."
