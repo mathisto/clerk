@@ -1,4 +1,4 @@
-{:deps {:aliases [:sci]}
+{:deps {:aliases [:sci :demo]}
  :dev-http {7778 ["public" "classpath:public"]}
  :builds {:browser {:target :browser
                     :output-to "public/js/viewer.js"
@@ -6,6 +6,7 @@
                     :modules {:viewer {:entries [nextjournal.clerk.sci-viewer
                                                  nextjournal.clerk.static-app
                                                  nextjournal.clerk.website
+                                                 devcards-sci-ext ;; 👈 extends SCI context with devcards
                                                  nextjournal.viewer.notebook]}}
 
                     :dev {:modules {:viewer {:entries [devtools]}}}
