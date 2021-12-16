@@ -2,7 +2,7 @@
 (ns how-clerk-works
   (:require [next.jdbc :as jdbc]
             [nextjournal.clerk]
-            [nextjournal.clerk.hashing :as h]
+            [nextjournal.clerk.analysis :as a]
             [weavejester.dependency :as dep]))
 
 ;; ## File Watching 👀
@@ -19,27 +19,27 @@
 ;; Then, each expression is analysed using `tools.analyzer`. A dependency graph, the analyzed form and the originating file is recorded.
 
 (def analyzed
-  (h/analyze-file "notebooks/how_clerk_works.clj"))
+  (a/analyze-file "notebooks/how_clerk_works.clj"))
 
 
 ;; This analysis is done recursively, descending into all dependency symbols.
 
-(h/find-location 'nextjournal.clerk.hashing/analyze-file)
+(a/find-location 'nextjournal.clerk.analysis/analyze-file)
 
-(h/find-location `dep/depend)
+(a/find-location `dep/depend)
 
-(h/find-location  'io.methvin.watcher.DirectoryChangeEvent)
+(a/find-location  'io.methvin.watcher.DirectoryChangeEvent)
 
-(h/find-location 'java.util.UUID)
+(a/find-location 'java.util.UUID)
 
-(let [{:keys [graph]} (h/build-graph "notebooks/how_clerk_works.clj")]
+(let [{:keys [graph]} (a/build-graph "notebooks/how_clerk_works.clj")]
   (dep/transitive-dependencies graph `analyzed))
 
 
 ;; ### Step 3: Hashing
 ;; Then we can use this information to hash each expression.
 (def hashes
-  (nextjournal.clerk.hashing/hash "notebooks/how_clerk_works.clj"))
+  (nextjournal.clerk.analysis/hash "notebooks/how_clerk_works.clj"))
 
 ;; ### Step 4: Evaluation
 ;; Clerk uses the hashes as filenames and only re-evaluates forms that haven't been seen before. The cache is using [nippy](https://github.com/ptaoussanis/nippy).

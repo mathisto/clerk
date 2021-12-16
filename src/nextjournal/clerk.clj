@@ -8,7 +8,7 @@
             [multihash.digest :as digest]
             [nextjournal.beholder :as beholder]
             [nextjournal.clerk.config :as config]
-            [nextjournal.clerk.hashing :as hashing]
+            [nextjournal.clerk.analysis :as analysis]
             [nextjournal.clerk.view :as view]
             [nextjournal.clerk.viewer :as v]
             [nextjournal.clerk.webserver :as webserver]
@@ -59,15 +59,15 @@
       :time-ms (/ (double (- (. System (nanoTime)) start#)) 1000000.0)}))
 
 (defn read+eval-cached [results-last-run vars->hash doc-visibility code-string]
-  (let [form (hashing/read-string code-string)
-        {:as analyzed :keys [ns-effect? var]} (hashing/analyze form)
-        hash (hashing/hash vars->hash analyzed)
+  (let [form (analysis/read-string code-string)
+        {:as analyzed :keys [ns-effect? var]} (analysis/analyze form)
+        hash (analysis/hash vars->hash analyzed)
         digest-file (->cache-file (str "@" hash))
-        no-cache? (or ns-effect? (hashing/no-cache? form))
+        no-cache? (or ns-effect? (analysis/no-cache? form))
         cas-hash (when (fs/exists? digest-file)
                    (slurp digest-file))
         cached? (boolean (and cas-hash (-> cas-hash ->cache-file fs/exists?)))
-        visibility (if-let [fv (hashing/->visibility form)] fv doc-visibility)]
+        visibility (if-let [fv (analysis/->visibility form)] fv doc-visibility)]
     #_(prn :cached? (cond no-cache? :no-cache
                           cached? true
                           (fs/exists? digest-file) :no-cas-file
@@ -136,7 +136,7 @@
     (+eval-results blob->result {} doc))
 
 (defn parse-file [file]
-  (hashing/parse-file {:markdown? true} file))
+  (analysis/parse-file {:markdown? true} file))
 
 #_(parse-file "notebooks/elements.clj")
 #_(parse-file "notebooks/visibility.clj")
@@ -144,7 +144,7 @@
 (defn eval-file
   ([file] (eval-file {} file))
   ([results-last-run file]
-   (+eval-results results-last-run (hashing/hash file) (parse-file file))))
+   (+eval-results results-last-run (analysis/hash file) (parse-file file))))
 
 #_(eval-file "notebooks/rule_30.clj")
 #_(eval-file "notebooks/visibility.clj")
@@ -162,7 +162,7 @@
       (reset! !last-file file)
       (let [doc (parse-file file)
             results-last-run (meta @webserver/!doc)
-            {:keys [result time-ms]} (time-ms (+eval-results results-last-run (hashing/hash file) doc))]
+            {:keys [result time-ms]} (time-ms (+eval-results results-last-run (analysis/hash file) doc))]
         ;; TODO diff to avoid flickering
         #_(webserver/update-doc! doc)
         (println (str "Clerk evaluated '" file "' in " time-ms "ms."))
@@ -364,7 +364,7 @@
   (show! "notebooks/pagination.clj")
   (show! "notebooks/how_clerk_works.clj")
   (show! "notebooks/conditional_read.cljc")
-  (show! "src/nextjournal/clerk/hashing.clj")
+  (show! "src/nextjournal/clerk/analysis.clj")
   (show! "src/nextjournal/clerk.clj")
 
   (show! "notebooks/test.clj")

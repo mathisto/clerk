@@ -1,5 +1,5 @@
 ;; # Hashing Things!!!!
-(ns ^:nextjournal.clerk/no-cache nextjournal.clerk.hashing
+(ns ^:nextjournal.clerk/no-cache nextjournal.clerk.analysis
   (:refer-clojure :exclude [hash read-string])
   (:require [babashka.fs :as fs]
             [clojure.core :as core]
@@ -49,8 +49,8 @@
                                (-> % resolve class?)))))
           (tree-seq (every-pred sequential? #(not (= 'quote (first %)))) seq form))))
 
-#_(var-dependencies '(def nextjournal.clerk.hashing/foo
-                       (fn* ([] (nextjournal.clerk.hashing/foo "s"))
+#_(var-dependencies '(def nextjournal.clerk.analysis/foo
+                       (fn* ([] (nextjournal.clerk.analysis/foo "s"))
                             ([s] (clojure.string/includes?
                                   (rewrite-clj.parser/parse-string-all s) "hi")))))
 
@@ -274,7 +274,7 @@
                 path)))
           (cp/classpath-directories))))
 
-#_(ns->file (find-ns 'nextjournal.clerk.hashing))
+#_(ns->file *ns*)
 
 (defn ns->jar [ns]
   (let [path (ns->path ns)]
@@ -349,10 +349,10 @@
 #_(dep/immediate-dependencies (:graph (build-graph "notebooks/elements.clj"))  #'nextjournal.clerk.demo/fix-case)
 #_(dep/transitive-dependencies (:graph (build-graph "notebooks/elements.clj"))  #'nextjournal.clerk.demo/fix-case)
 
-#_(keys (:->analysis-info (build-graph "src/nextjournal/clerk/hashing.clj")))
-#_(dep/topo-sort (:graph (build-graph "src/nextjournal/clerk/hashing.clj")))
-#_(dep/immediate-dependencies (:graph (build-graph "src/nextjournal/clerk/hashing.clj"))  #'nextjournal.clerk.hashing/long-thing)
-#_(dep/transitive-dependencies (:graph (build-graph "src/nextjournal/clerk/hashing.clj"))  #'nextjournal.clerk.hashing/long-thing)
+#_(keys (:->analysis-info (build-graph "src/nextjournal/clerk/analysis.clj")))
+#_(dep/topo-sort (:graph (build-graph "src/nextjournal/clerk/analysis.clj")))
+#_(dep/immediate-dependencies (:graph (build-graph "src/nextjournal/clerk/analysis.clj"))  `long-thing)
+#_(dep/transitive-dependencies (:graph (build-graph "src/nextjournal/clerk/analysis.clj"))  `long-thing)
 
 
 (defn hash
