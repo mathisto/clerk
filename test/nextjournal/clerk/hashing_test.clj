@@ -1,15 +1,14 @@
 (ns nextjournal.clerk.hashing-test
   (:require [clojure.test :refer :all]
+            [clojure.java.io :as io]
             [matcher-combinators.test :refer [match?]]
             [matcher-combinators.matchers :as m]
             [nextjournal.clerk.hashing :as h]
             [weavejester.dependency :as dep]))
 
-
 (defmacro with-ns-binding [ns-sym & body]
   `(binding [*ns* (find-ns ~ns-sym)]
      ~@body))
-
 
 (deftest no-cache?
   (testing "are variables set to no-cache?"
@@ -121,7 +120,7 @@
                                             :deps nil}}})
               (h/analyze-file {:markdown? true}
                               {:graph (dep/graph)}
-                              "resources/tests/example_notebook.clj"))))
+                              (io/file "resources/tests/example_notebook.clj")))))
 
 (deftest circular-dependency
   (is (match? {:graph {:dependencies {'(ns circular) any?
@@ -130,4 +129,7 @@
                :->analysis-info {'circular/a any?
                                  'circular/b any?
                                  'circular/a+circular/b {:form '(do ((str "boom " b)) ((str a " boom")))}}}
-              (h/analyze-file "resources/tests/circular.clj"))))
+              (h/analyze-file "(ns circular)
+                               (declare a)
+                               (def b (str a \" boom\"))
+                               (def a (str \"boom \" b))"))))

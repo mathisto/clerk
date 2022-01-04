@@ -19,7 +19,7 @@
 ;; Then, each expression is analysed using `tools.analyzer`. A dependency graph, the analyzed form and the originating file is recorded.
 
 (def analyzed
-  (h/analyze-file "notebooks/how_clerk_works.clj"))
+  (h/analyze-file (clojure.java.io/file "notebooks/how_clerk_works.clj")))
 
 
 ;; This analysis is done recursively, descending into all dependency symbols.

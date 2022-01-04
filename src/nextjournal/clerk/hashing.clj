@@ -130,30 +130,32 @@
 (def code-tags
   #{:deref :map :meta :list :quote :reader-macro :set :token :var :vector})
 
-(defn parse-clojure-file
-  ([file] (parse-clojure-file {} file))
-  ([{:as _opts :keys [markdown?]} file]
-   (loop [{:as state :keys [nodes visibility]} {:nodes (:children (p/parse-file-all file))
-                                                :doc []}]
-     (if-let [node (first nodes)]
-       (recur (cond
-                (code-tags (n/tag node))
-                (cond-> (-> state
-                            (update :nodes rest)
-                            (update :doc (fnil conj []) (cond-> {:type :code :text (n/string node)}
-                                                          (and (not visibility) (-> node n/string read-string ns?))
-                                                          (assoc :ns? true))))
-                  (not visibility)
-                  (assoc :visibility (-> node n/string read-string ->doc-visibility)))
+(defn parse-clojure-resource
+  ([resource] (parse-clojure-resource {} resource))
+  ([{:as _opts :keys [markdown?]} resource]
+   (let [nodes (:children (if (string? resource)
+                            (p/parse-string-all resource)
+                            (p/parse-file-all resource)))]
+     (loop [{:as state :keys [nodes visibility]} {:nodes nodes :doc []}]
+       (if-let [node (first nodes)]
+         (recur (cond
+                  (code-tags (n/tag node))
+                  (cond-> (-> state
+                              (update :nodes rest)
+                              (update :doc (fnil conj []) (cond-> {:type :code :text (n/string node)}
+                                                            (and (not visibility) (-> node n/string read-string ns?))
+                                                            (assoc :ns? true))))
+                    (not visibility)
+                    (assoc :visibility (-> node n/string read-string ->doc-visibility)))
 
-                (and markdown? (n/comment? node))
-                (-> state
-                    (assoc :nodes (drop-while n/comment? nodes))
-                    (update :doc conj {:type :markdown :doc (markdown/parse (apply str (map (comp remove-leading-semicolons n/string)
-                                                                                            (take-while n/comment? nodes))))}))
-                :else
-                (update state :nodes rest)))
-       (select-keys state [:doc :visibility])))))
+                  (and markdown? (n/comment? node))
+                  (-> state
+                      (assoc :nodes (drop-while n/comment? nodes))
+                      (update :doc conj {:type :markdown :doc (markdown/parse (apply str (map (comp remove-leading-semicolons n/string)
+                                                                                              (take-while n/comment? nodes))))}))
+                  :else
+                  (update state :nodes rest)))
+         (select-keys state [:doc :visibility]))))))
 
 (defn code-cell? [{:as node :keys [type]}]
   (and (= :code type) (contains? node :info)))
@@ -168,39 +170,28 @@
           (-> markdown-code-cell markdown.transform/->text str/trim p/parse-string-all :children
               (->> (filter (comp code-tags n/tag))))))
 
-(defn parse-markdown-file [{:keys [markdown?]} file]
-  (loop [{:as state :keys [nodes] ::keys [md-slice]} {:doc [] ::md-slice [] :nodes (:content (markdown/parse (slurp file)))}]
-    (if-some [node (first nodes)]
-      (recur
-       (if (code-cell? node)
-         (cond-> state
-           (seq md-slice)
-           (-> #_state
-               (update :doc conj {:type :markdown :doc {:type :doc :content md-slice}})
-               (assoc ::md-slice []))
+(defn parse-markdown-resource [{:keys [markdown?]} resource]
+  (let [nodes (:content (markdown/parse (if (string? resource) resource (slurp resource))))]
+    (loop [{:as state :keys [nodes] ::keys [md-slice]} {:doc [] ::md-slice [] :nodes nodes}]
+      (if-some [node (first nodes)]
+        (recur
+         (if (code-cell? node)
+           (cond-> state
+             (seq md-slice)
+             (-> #_state
+                 (update :doc conj {:type :markdown :doc {:type :doc :content md-slice}})
+                 (assoc ::md-slice []))
 
-           :always
-           (-> #_state
-               (parse-markdown-cell node)
-               (update :nodes rest)))
+             :always
+             (-> #_state
+                 (parse-markdown-cell node)
+                 (update :nodes rest)))
 
-         (-> state (update :nodes rest) (cond-> markdown? (update ::md-slice conj node)))))
+           (-> state (update :nodes rest) (cond-> markdown? (update ::md-slice conj node)))))
 
-      (-> state
-          (update :doc #(cond-> % (seq md-slice) (conj {:type :markdown :doc {:type :doc :content md-slice}})))
-          (select-keys [:doc :visibility])))))
-
-(defn parse-file
-  ([file] (parse-file {} file))
-  ([opts file] (if (str/ends-with? file ".md")
-                 (parse-markdown-file opts file)
-                 (parse-clojure-file opts file))))
-
-#_(parse-file {:markdown? true} "notebooks/visibility.clj")
-#_(parse-file "notebooks/elements.clj")
-#_(parse-file "notebooks/markdown.md")
-#_(parse-file {:markdown? true} "notebooks/rule_30.clj")
-#_(parse-file "notebooks/src/demo/lib.cljc")
+        (-> state
+            (update :doc #(cond-> % (seq md-slice) (conj {:type :markdown :doc {:type :doc :content md-slice}})))
+            (select-keys [:doc :visibility]))))))
 
 (defn- circular-dependency-error? [e]
   (-> e ex-data :reason #{::dep/circular-dependency}))
@@ -243,15 +234,18 @@
   ([state file]
    (analyze-file {} state file))
   ([{:as opts :keys [markdown?]} state file]
-   (let [doc                 (parse-file opts file)
+   (let [filename (if (string? file) "<NO FILENAME>" (str file))
+         doc      (if (str/ends-with? filename ".md")
+                    (parse-markdown-resource opts file)
+                    (parse-clojure-resource opts file))
          state-with-document (cond-> state markdown? (assoc :doc doc))
-         code-cells (into [] (filter (comp #{:code} :type)) (:doc doc))]
-     (reduce (partial analyze-codeblock file) state-with-document code-cells))))
+         code-cells          (into [] (filter (comp #{:code} :type)) (:doc doc))]
+    (reduce (partial analyze-codeblock filename) state-with-document code-cells))))
 
-#_(:graph (analyze-file {:markdown? true} {:graph (dep/graph)} "notebooks/elements.clj"))
-#_(analyze-file {:markdown? true} {:graph (dep/graph)} "notebooks/rule_30.clj")
-#_(analyze-file {:graph (dep/graph)} "notebooks/recursive.clj")
-#_(analyze-file {:graph (dep/graph)} "notebooks/hello.clj")
+#_(:graph (analyze-file {:markdown? true} {:graph (dep/graph)} (io/file "notebooks/elements.clj")))
+#_(analyze-file {:markdown? true} {:graph (dep/graph)} (io/file "notebooks/rule_30.clj"))
+#_(analyze-file {:graph (dep/graph)} (io/file "notebooks/recursive.clj"))
+#_(analyze-file {:graph (dep/graph)} (io/file "notebooks/hello.clj"))
 
 (defn unhashed-deps [->analysis-info]
   (set/difference (into #{}
@@ -333,13 +327,13 @@
 
   Recursively decends into dependency vars as well as given they can be found in the classpath.
   "
-  [file]
-  (let [{:as graph :keys [->analysis-info]} (analyze-file file)]
+  [filename]
+  (let [{:as graph :keys [->analysis-info]} (analyze-file (io/file filename))]
     (reduce (fn [g [source symbols]]
               (if (or (nil? source)
                       (str/ends-with? source ".jar"))
                 (update g :->analysis-info merge (into {} (map (juxt identity (constantly (if source (hash-jar source) {})))) symbols))
-                (analyze-file g source)))
+                (analyze-file g (io/file source))))
             graph
             (group-by find-location (unhashed-deps ->analysis-info)))))
 
