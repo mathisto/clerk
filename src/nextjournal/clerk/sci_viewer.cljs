@@ -9,12 +9,12 @@
             [nextjournal.devcards :as dc]
             [nextjournal.markdown.transform :as md.transform]
             [nextjournal.ui.components.icon :as icon]
+            [nextjournal.ui.components.d3-require :as d3-require]
             [nextjournal.viewer.code :as code]
             [nextjournal.viewer.katex :as katex]
             [nextjournal.viewer.markdown :as markdown]
             [nextjournal.viewer.mathjax :as mathjax]
             [nextjournal.viewer.plotly :as plotly]
-            [nextjournal.viewer.vega-lite :as vega-lite]
             [nextjournal.view.context :as view-context]
             [re-frame.context :as rf]
             [react :as react]
@@ -554,6 +554,14 @@
 (dc/defcard viewer-js-window []
   [inspect js/window])
 
+(defn vega-lite-viewer [value]
+  (html
+   (when value
+     [d3-require/with {:package ["vega-embed@6.11.1"]}
+      (j/fn [^:js {:keys [embed]}]
+        [:div {:style {:overflow-x "auto"}} ;; TODO: figure out how to make options customizable
+         [:div.vega-lite {:ref #(when % (embed % (clj->js value) #js {:actions false}))}]])])))
+
 (dc/defcard viewer-vega-lite
   [inspect (vl {:width 650
                 :height 400
@@ -906,7 +914,6 @@ black")}]))}
 (def mathjax-viewer (comp normalize-viewer mathjax/viewer))
 (def code-viewer (comp normalize-viewer code/viewer))
 (def plotly-viewer (comp normalize-viewer plotly/viewer))
-(def vega-lite-viewer (comp normalize-viewer vega-lite/viewer))
 
 (defn markdown-viewer
   "Accept a markdown string or a structure from parsed markdown."
