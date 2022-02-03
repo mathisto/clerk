@@ -156,10 +156,20 @@
   (let [{:as info :keys [doc]} (hashing/build-graph parsed-doc) ;; TODO: clarify that this returns an analyzed doc
         ->hash (hashing/hash info)
         {:keys [blocks visibility]} doc
-        blocks (into [] (map (fn [{:as cell :keys [type]}]
-                               (cond-> cell
-                                 (= :code type)
-                                 (assoc :result (read+eval-cached results-last-run ->hash visibility cell))))) blocks)]
+        blocks (into []
+                     (map (fn [{:as cell :keys [type]}]
+                            (cond-> cell
+                              (= :code type)
+                              (assoc :result
+                                     (try
+                                     (read+eval-cached results-last-run ->hash visibility cell)
+                                     (catch Exception e
+                                       (throw (ex-info "evaluation in Clerk resulted in exception"
+                                                       {:form (:form cell)
+                                                        :file (:file parsed-doc)}
+                                                       e))))
+                                     ))))
+                     blocks)]
     (assoc parsed-doc :blocks blocks :blob->result (blob->result blocks) :ns *ns*)))
 
 (defn parse-file [file]
