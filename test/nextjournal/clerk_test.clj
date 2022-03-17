@@ -5,7 +5,7 @@
             [clojure.test :refer :all]
             [matcher-combinators.test :refer [match?]]
             [nextjournal.clerk :as clerk]
-            [nextjournal.clerk.hashing :as hashing]
+            [nextjournal.clerk.analysis :as analysis]
             [nextjournal.clerk.view :as view])
   (:import (java.io File)))
 
@@ -47,7 +47,7 @@
       (is (= 0 (count (into [] (comp (map key) (filter nil?)) blob->result))))))
 
   (testing "the 'previous results' cache takes first precedence"
-    (let [doc (hashing/parse-clojure-string "(inc 41)")
+    (let [doc (analysis/parse-clojure-string "(inc 41)")
           {:keys [blob->result]} (clerk/eval-doc doc)
           [blob-id {v :nextjournal/value}] (first blob->result)]
       (is (= v 42))

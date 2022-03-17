@@ -1,5 +1,4 @@
-;; # Hashing Things!!!!
-(ns ^:nextjournal.clerk/no-cache nextjournal.clerk.hashing
+(ns ^:nextjournal.clerk/no-cache nextjournal.clerk.analysis
   (:refer-clojure :exclude [hash read-string])
   (:require [babashka.fs :as fs]
             [clojure.core :as core]
@@ -63,8 +62,8 @@
                                (-> % resolve class?)))))
           (tree-seq (every-pred (some-fn sequential? map? set?) not-quoted?) seq analyzed-form))))
 
-#_(var-dependencies '(def nextjournal.clerk.hashing/foo
-                       (fn* ([] (nextjournal.clerk.hashing/foo "s"))
+#_(var-dependencies '(def nextjournal.clerk.analysis/foo
+                       (fn* ([] (nextjournal.clerk.analysis/foo "s"))
                             ([s] (clojure.string/includes?
                                   (rewrite-clj.parser/parse-string-all s) "hi")))))
 (defn analyze+emit [form]
@@ -334,7 +333,7 @@
                 path)))
           (cp/classpath-directories))))
 
-#_(ns->file (find-ns 'nextjournal.clerk.hashing))
+#_(ns->file (find-ns 'nextjournal.clerk.analysis))
 
 (defn ns->jar [ns]
   (let [path (ns->path ns)]
@@ -376,7 +375,7 @@
 #_(find-location 'java.util.UUID)
 #_(find-location 'java.util.UUID/randomUUID)
 #_(find-location 'io.methvin.watcher.PathUtils)
-#_(find-location 'io.methvin.watcher.hashing.FileHasher/DEFAULT_FILE_HASHER)
+#_(find-location 'io.methvin.watcher.analysis.FileHasher/DEFAULT_FILE_HASHER)
 #_(find-location 'String)
 
 
@@ -410,10 +409,10 @@
 #_(dep/immediate-dependencies (:graph (build-graph "notebooks/elements.clj"))  #'nextjournal.clerk.demo/fix-case)
 #_(dep/transitive-dependencies (:graph (build-graph "notebooks/elements.clj"))  #'nextjournal.clerk.demo/fix-case)
 
-#_(keys (:->analysis-info (build-graph "src/nextjournal/clerk/hashing.clj")))
-#_(dep/topo-sort (:graph (build-graph "src/nextjournal/clerk/hashing.clj")))
-#_(dep/immediate-dependencies (:graph (build-graph "src/nextjournal/clerk/hashing.clj"))  #'nextjournal.clerk.hashing/long-thing)
-#_(dep/transitive-dependencies (:graph (build-graph "src/nextjournal/clerk/hashing.clj"))  #'nextjournal.clerk.hashing/long-thing)
+#_(keys (:->analysis-info (build-graph "src/nextjournal/clerk/analysis.clj")))
+#_(dep/topo-sort (:graph (build-graph "src/nextjournal/clerk/analysis.clj")))
+#_(dep/immediate-dependencies (:graph (build-graph "src/nextjournal/clerk/analysis.clj"))  #'nextjournal.clerk.analysis/long-thing)
+#_(dep/transitive-dependencies (:graph (build-graph "src/nextjournal/clerk/analysis.clj"))  #'nextjournal.clerk.analysis/long-thing)
 
 (defn hash-codeblock [->hash {:keys [hash form deps]}]
   (let [hashed-deps (into #{} (map ->hash) deps)]

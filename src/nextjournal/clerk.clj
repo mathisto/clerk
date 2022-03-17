@@ -8,7 +8,7 @@
             [multihash.digest :as digest]
             [nextjournal.beholder :as beholder]
             [nextjournal.clerk.config :as config]
-            [nextjournal.clerk.hashing :as hashing]
+            [nextjournal.clerk.analysis :as analysis]
             [nextjournal.clerk.view :as view]
             [nextjournal.clerk.viewer :as v]
             [nextjournal.clerk.webserver :as webserver]
@@ -129,12 +129,12 @@
 (defn read+eval-cached [results-last-run ->hash doc-visibility codeblock]
   (let [{:keys [ns-effect? form var]} codeblock
         no-cache?      (or ns-effect?
-                           (hashing/no-cache? form))
+                           (analysis/no-cache? form))
         hash           (when-not no-cache? (or (get ->hash (if var var form))
-                                               (hashing/hash-codeblock ->hash codeblock)))
+                                               (analysis/hash-codeblock ->hash codeblock)))
         digest-file    (when hash (->cache-file (str "@" hash)))
         cas-hash       (when (and digest-file (fs/exists? digest-file)) (slurp digest-file))
-        visibility     (if-let [fv (hashing/->visibility form)] fv doc-visibility)
+        visibility     (if-let [fv (analysis/->visibility form)] fv doc-visibility)
         cached-result? (and (not no-cache?)
                             cas-hash
                             (-> cas-hash ->cache-file fs/exists?))
@@ -185,18 +185,18 @@
 
 
 (defn +eval-results [results-last-run parsed-doc]
-  (let [analyzed-doc (hashing/build-graph parsed-doc)]
+  (let [analyzed-doc (analysis/build-graph parsed-doc)]
     (-> analyzed-doc
-        (assoc :blob->result results-last-run :->hash (hashing/hash analyzed-doc) :ns *ns*)
+        (assoc :blob->result results-last-run :->hash (analysis/hash analyzed-doc) :ns *ns*)
         eval-analyzed-doc)))
 
 (defn parse-file [file]
-  (hashing/parse-file {:doc? true} file))
+  (analysis/parse-file {:doc? true} file))
 
 #_(parse-file "notebooks/elements.clj")
 #_(parse-file "notebooks/visibility.clj")
 
-#_(hashing/build-graph (parse-file "notebooks/test123.clj"))
+#_(analysis/build-graph (parse-file "notebooks/test123.clj"))
 
 (defn eval-doc
   ([doc] (eval-doc {} doc))
@@ -213,7 +213,7 @@
 (defn eval-string
   ([s] (eval-string {} s))
   ([results-last-run s]
-   (eval-doc results-last-run (hashing/parse-clojure-string {:doc? true} s))))
+   (eval-doc results-last-run (analysis/parse-clojure-string {:doc? true} s))))
 
 #_(eval-string "(+ 39 3)")
 
@@ -456,7 +456,7 @@
   (show! "notebooks/pagination.clj")
   (show! "notebooks/how_clerk_works.clj")
   (show! "notebooks/conditional_read.cljc")
-  (show! "src/nextjournal/clerk/hashing.clj")
+  (show! "src/nextjournal/clerk/analysis.clj")
   (show! "src/nextjournal/clerk.clj")
 
   (show! "notebooks/test.clj")
