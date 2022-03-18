@@ -2,7 +2,7 @@
 (ns how-clerk-works
   (:require [next.jdbc :as jdbc]
             [nextjournal.clerk :as clerk]
-            [nextjournal.clerk.analysis :as a]
+            [nextjournal.clerk.analysis :as ana]
             [weavejester.dependency :as dep]))
 
 ;; ## File Watching 👀
@@ -19,18 +19,18 @@
 ;; Then, each expression is analysed using `tools.analyzer`. A dependency graph, the analyzed form and the originating file is recorded.
 
 (def analyzed
-  (a/build-graph parsed))
+  (ana/build-graph parsed))
 
 
 ;; This analysis is done recursively, descending into all dependency symbols.
 
-(a/find-location 'nextjournal.clerk.analysis/analyze-file)
+(ana/find-location 'nextjournal.clerk.analysis/analyze-file)
 
-(a/find-location `dep/depend)
+(ana/find-location `dep/depend)
 
-(a/find-location 'io.methvin.watcher.DirectoryChangeEvent)
+(ana/find-location 'io.methvin.watcher.DirectoryChangeEvent)
 
-(a/find-location 'java.util.UUID)
+(ana/find-location 'java.util.UUID)
 
 
 (let [{:keys [graph]} analyzed]
@@ -39,7 +39,7 @@
 ;; ### Step 3: Hashing
 ;; Then we can use this information to hash each expression.
 (def hashes
-  (a/hash analyzed))
+  (ana/hash analyzed))
 
 ;; ### Step 4: Evaluation
 ;; Clerk uses the hashes as filenames and only re-evaluates forms that haven't been seen before. The cache is using [nippy](https://github.com/ptaoussanis/nippy).
