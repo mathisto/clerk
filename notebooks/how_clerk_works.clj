@@ -24,7 +24,7 @@
 
 ;; This analysis is done recursively, descending into all dependency symbols.
 
-(a/find-location 'nextjournal.clerk.hashing/analyze-file)
+(a/find-location 'nextjournal.clerk.analysis/analyze-file)
 
 (a/find-location `dep/depend)
 
