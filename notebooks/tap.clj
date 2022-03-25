@@ -3,7 +3,7 @@
   (:require [nextjournal.clerk :as clerk]
             [nextjournal.clerk.viewer :as v]
             [clojure.core :as core]))
-#_
+
 ^{::clerk/viewer {:transform-fn (fn [{::clerk/keys [var-from-def]}]
                                   {:var-name (symbol var-from-def) :value @@var-from-def})
                   :commands []
@@ -25,94 +25,41 @@
 ^{::clerk/viewer clerk/hide-result}
 (defonce !taps (atom ()))
 
-#_
-^{::clerk/viewer (if (= :latest @!view)
-                   {:transform-fn first}
-                   {:render-fn '#(v/html
-                                  #_
-                                  [:div.flex.flex-col
-                                   (map-indexed (fn [idx x]
-                                                  (with-meta (v/inspect (update %2 :path conj idx) x)
-                                                    {:key (gensym)}))
-                                                %1)]
-                                  (into [:div.flex.flex-col]
-                                        (map-indexed (fn [idx x]
-                                                       (v/inspect (update %2 :path conj idx) x)))
-                                        %1))})}
-@!taps
-
-
-
-
-
-^{::clerk/viewer {:render-fn '(fn [taps opts]
-                                (js/console.log :taps taps)
+^{::clerk/viewer clerk/hide-result}
+(def taps-viewer {:render-fn '(fn [taps opts]
                                 (v/html [:div.flex.flex-col
                                          (map (fn [tap] (let [{:keys [value key]} (:nextjournal/value tap)]
                                                          (with-meta [v/inspect value] {:key key})))
                                               taps)]))
                   :transform-fn (fn [taps]
-                                  (mapv (fn [tap] (clerk/with-viewer {:render-fn '(fn [{:keys [key value]}]
-                                                                                   (js/console.log :value value :key key)
-                                                                                   [:div "hi"])
-                                                                     :fetch-fn (fn [{:as opts :keys [describe-fn]} x]
-                                                                                 (prn :X x)
-                                                                                 (update x :value describe-fn #_#_(assoc opts :current-path []) []))}
-                                                   tap)) taps))}}
-[#_{:key (str (gensym)) :value 42}
- {:key (str (gensym)) :value (range 40)}
- {:key (str (gensym)) :value (range 40)}
- {:key (str (gensym)) :value (range 40)}
- {:key (str (gensym)) :value (range 40)}
- {:key (str (gensym)) :value (range 40)}
- {:key (str (gensym)) :value (range 40)}
- {:key (str (gensym)) :value (range 40)}
- {:key (str (gensym)) :value (range 40)}
- {:key (str (gensym)) :value (range 40)}
- {:key (str (gensym)) :value (range 40)}
- {:key (str (gensym)) :value (range 40)}
- {:key (str (gensym)) :value (range 40)}
- {:key (str (gensym)) :value (range 40)}
- {:key (str (gensym)) :value (range 40)}]
+                                  (mapv (fn [tap] (clerk/with-viewer {:fetch-fn (fn [{:as opts :keys [describe-fn]} x]
+                                                                                 (prn :opts (select-keys opts [:path]) :x x)
+                                                                                 (update x :value describe-fn (assoc opts :!budget (atom 100)) (:path opts)))}
+                                                   tap)) taps))})
+
+
+^{::clerk/viewer (if (= :latest @!view)
+                   {:transform-fn first}
+                   taps-viewer)}
+@!taps
 
 
 
-#_
-^{::clerk/viewer {:render-fn '#(v/html [:div.flex.flex-col %1]
-                                       #_
-                                       (into [:div.flex.flex-col]
-                                             (map-indexed (fn [idx x]
-                                                            (js/console.log :x x)
-                                                            (v/inspect (update %2 :path conj idx) x)))
-                                             %1))
-                  :transform-fn (fn [xs]
-                                  (prn :xs xs)
-                                  (mapv #(clerk/with-viewer :tap %) xs))}
-  ::clerk/viewers [{:name :tap
-                    :render-fn '(fn [{:keys [key value]}]
-                                  (js/console.log :value value :key key)
-                                  value)
-                    :fetch-fn (fn [{:as opts :keys [describe-fn]} x]
-                                (prn :X x)
-                                (update x :value describe-fn #_#_(assoc opts :current-path []) []))}]}
-[#_{:key (str (gensym)) :value 42}
- {:key (str (gensym)) :value (range 40)}
- #_#_#_#_#_#_#_#_
- {:key (str (gensym)) :value (range 40)}
- {:key (str (gensym)) :value (range 40)}
- {:key (str (gensym)) :value (range 40)}
- {:key (str (gensym)) :value (range 40)}
- {:key (str (gensym)) :value (range 40)}
- {:key (str (gensym)) :value (range 40)}
- {:key (str (gensym)) :value (range 40)}
- {:key (str (gensym)) :value (range 40)}]
+^{::clerk/viewer taps-viewer}
+[{:key (str (gensym)) :value (range 10)}
+ {:key (str (gensym)) :value (range 15)}
+ {:key (str (gensym)) :value (range 20)}
+ {:key (str (gensym)) :value (range 25)}
+ {:key (str (gensym)) :value (range 30)}]
+
+
 
 #_(reset! !taps ())
 
-#_
+
 ^{::clerk/viewer clerk/hide-result}
 (defn tapped [x]
-  (swap! !taps conj x #_{:val x #_#_:inst (java.time.Instant/now) :key (str (gensym))})
+  (swap! !taps conj {:value x :inst (java.time.Instant/now) :key (str (gensym))})
   (binding [*ns* (find-ns 'tap)]
     (clerk/recompute!)))
 
@@ -120,6 +67,11 @@
 
 #_(reset! @(find-var 'clojure.core/tapset) #{})
 
+^{::clerk/viewer clerk/hide-result}
+(defonce setup
+  (add-tap tapped))
+
+#_(remove-tap tapped)
 
 
 
@@ -128,7 +80,7 @@
   (Thread/sleep 4000)
   
   (tap> (rand-int 1000))
-  (tap> (shuffle (range 10)))
+  (tap> (shuffle (range 100)))
   (tap> (javax.imageio.ImageIO/read (java.net.URL. "https://images.freeimages.com/images/large-previews/773/koldalen-4-1384902.jpg")))
   (tap> (clerk/vl {:width 650 :height 400 :data {:url "https://vega.github.io/vega-datasets/data/us-10m.json"
                                                  :format {:type "topojson" :feature "counties"}}
