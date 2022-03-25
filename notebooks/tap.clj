@@ -33,8 +33,9 @@
                                               taps)]))
                   :transform-fn (fn [taps]
                                   (mapv (fn [tap] (clerk/with-viewer {:fetch-fn (fn [{:as opts :keys [describe-fn]} x]
-                                                                                 (prn :opts (select-keys opts [:path]) :x x)
-                                                                                 (update x :value describe-fn (assoc opts :!budget (atom 100)) (:path opts)))}
+                                                                                 (let [path (:path opts)]
+                                                                                   (prn :opts (select-keys opts [:path]) :path path :x x)
+                                                                                   (update x :value describe-fn (assoc opts :!budget (atom 100) :path path) path)))}
                                                    tap)) taps))})
 
 
@@ -42,7 +43,6 @@
                    {:transform-fn first}
                    taps-viewer)}
 @!taps
-
 
 
 ^{::clerk/viewer taps-viewer}
