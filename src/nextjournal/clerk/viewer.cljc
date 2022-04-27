@@ -630,15 +630,8 @@
       (assert (or (#{:root} scope)
                   (instance? clojure.lang.Namespace scope)
                   (var? scope)))
-      (swap! !viewers assoc scope viewers)
-      (with-viewer :eval! `'(v/set-viewers! ~(datafy-scope scope) ~viewers)))))
+      (swap! !viewers assoc scope viewers))))
 
-
-(defn registration? [x]
-  (and (map? x) (contains? #{:eval!} (->viewer x))))
-
-#_(registration? (set-viewers! []))
-#_(nextjournal.clerk/show! "notebooks/viewers/vega.clj")
 
 (defn normalize-viewer-opts [opts]
   (set/rename-keys opts {:nextjournal.clerk/viewer :nextjournal/viewer
