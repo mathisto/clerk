@@ -7,6 +7,7 @@
 
 ;; With two custom viewers and a helper function, we can show a Clerk notebooks as Slideshow.
 ;; First, there's the `side-viewer`:
+
 ^{::clerk/viewer :hide-result}
 (def slide-viewer
   {:fetch-fn v/fetch-all
@@ -31,20 +32,15 @@
                  ([acc {:nextjournal/keys [viewer value]}]
                   (if (not= :clerk/markdown-block viewer)
                     (update acc :open-fragment conj value)
-                    (loop [[first-fragment & tail] (partition-by (comp #{:ruler} :type) (-> value :doc :content))
+                    (loop [[hd & tail] (partition-by (comp #{:ruler} :type) (-> value :doc :content))
                            {:as acc :keys [open-fragment]} acc]
-                      (cond
-                        (= :ruler (-> first-fragment first :type))
-                        (recur tail (cond-> acc
-                                      (seq open-fragment)
-                                      (-> (update :slides conj (->slide open-fragment))
-                                          (assoc :open-fragment []))))
-                        (empty? tail)
-                        (update acc :open-fragment into first-fragment)
-                        'else
-                        (recur tail (-> acc
-                                        (update :slides conj (->slide (into open-fragment first-fragment)))
-                                        (assoc :open-fragment []))))))))
+                      (let [ruler? (comp #{:ruler} :type first)]
+                        (if (and (empty? tail) (not (ruler? hd)))
+                          (update acc :open-fragment into hd)
+                          (recur tail (cond-> acc
+                                        (or (seq open-fragment) (and (seq hd) (not (ruler? hd))))
+                                        (-> (update :slides conj (->slide (concat open-fragment (when-not (ruler? hd) hd))))
+                                            (assoc :open-fragment []))))))))))
                blocks)))
 
 ;; ---
@@ -134,5 +130,4 @@
            :projection {:type "albersUsa"} :mark "geoshape" :encoding {:color {:field "rate" :type "quantitative"}}})
 
 ;; ---
-
 ;; # 👋🏻 Fin.
