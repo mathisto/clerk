@@ -46,13 +46,14 @@
   (-> (update wrapped-value :nextjournal/value (fn [x]
                                                  (when (empty? (:path wrapped-value))
                                                    (throw (ex-info "path cannot be empty?" {:path (:path wrapped-value) :wrapped-value wrapped-value})))
+                                                 (prn :=key (= key (peek (:path wrapped-value))))
                                                  (cond-> (update x key v/describe (cond-> (-> wrapped-value
-                                                                                              v/->opts
-                                                                                              (assoc :budget 100000))
+                                                                                              v/->opts)
                                                                                     (not= key (peek (:path wrapped-value)))
                                                                                     (-> (update :path conj key)
                                                                                         (update :current-path conj key))))
-                                                   (pos-int? offset) key)))
+                                                   (or (= key (peek (:path wrapped-value)))
+                                                       (pos-int? offset)) (get-in [key :nextjournal/value]))))
       v/assoc-reduced))
 
 ^{::clerk/viewer clerk/hide-result}
@@ -69,25 +70,27 @@
    :transform-fn (comp (partial describe-only-key :tap)
                        (clerk/update-value #(update % :tapped-at inst->local-time-str)))})
 
-^{::clerk/viewer clerk/hide-result}
-(clerk/add-viewers! [tap-viewer])
 
-^{::clerk/viewer clerk/hide-result}
+^{::clerk/viewer clerk/hide-result ::clerk/no-cache true}
 (def taps-viewer
   {:render-fn '#(v/html (into [:div.flex.flex-col.pt-2] (v/inspect-children %2) %1))
-   :transform-fn (clerk/update-value (fn [taps]
-                                       (mapv (partial clerk/with-viewer :tapped-value) (reverse taps))))})
+   :transform-fn (clerk/update-value (if (= :latest @!view)
+                                       (partial take-last 1)
+                                       reverse))})
 
-^{::clerk/viewer (if (= :latest @!view)
-                   {:transform-fn (clerk/update-value (comp (partial clerk/with-viewer tap-viewer) peek))}
-                   taps-viewer)}
+^{::clerk/viewer {:render-fn '#(v/html (into [:div.flex.flex-col.pt-2] (v/inspect-children %2) %1))
+                  :transform-fn (clerk/update-value (if (= :latest @!view)
+                                                      (partial take-last 1)
+                                                      reverse))}}
 @!taps
 
 ^{::clerk/viewer clerk/hide-result}
 (defn tapped [x]
-  (swap! !taps conj {:tap x :tapped-at (java.time.Instant/now) :key (str (gensym))})
-  (binding [*ns* (find-ns 'tap)]
-    (clerk/recompute!)))
+  (swap! !taps conj (clerk/with-viewer tap-viewer
+                      {:tap x
+                       :tapped-at (java.time.Instant/now)
+                       :key (str (gensym))}))
+  (clerk/recompute!))
 
 #_(tapped (rand-int 1000))
 
