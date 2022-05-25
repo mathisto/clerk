@@ -4,7 +4,8 @@
 
 ^{:nextjournal.clerk/visibility :hide}
 (ns ^:nextjournal.clerk/no-cache table-viewer
-  (:require [nextjournal.clerk.viewer :refer :all]))
+  (:require [nextjournal.clerk :as clerk]
+            [nextjournal.clerk.viewer :refer :all]))
 
 ^{:nextjournal.clerk/viewer :hide-result}
 (defn update-table-viewers' [viewers]
@@ -23,26 +24,33 @@
                                                                                                                (- total offset) (when unbounded? "+") (if (fn? fetch-fn) " more…" " more elided")]])])))
                        (comp #{string?} :pred) #(assoc % :render-fn (quote v/string-viewer))
                        (comp #{number?} :pred) #(assoc % :render-fn '(fn [x] (v/html [:span.tabular-nums (if (js/Number.isNaN x) "NaN" (str x))])))})
-      (add-viewers [{:name :table/markup :fetch-opts {:n 5} :render-fn '(fn [rows opts] (v/html [:table.text-xs.sans-serif.text-gray-900.dark:text-white.not-prose
-                                                                                                 (into [:<>] (map-indexed (fn [idx row] (v/inspect (update opts :path conj idx) row))) rows)]))}
+      (add-viewers [{:name :table/markup :render-fn '(fn [[head body] opts]
+                                                       (v/html [:table.text-xs.sans-serif.text-gray-900.dark:text-white.not-prose
+                                                                (when (:nextjournal/value head)
+                                                                  (v/inspect opts head))
+                                                                (v/inspect opts body)
+                                                                #_(into [:<>] (map-indexed (fn [idx row] (v/inspect (update opts :path conj idx) row))) rows)]))}
                     {:name :table/head :render-fn '(fn [header-row {:as opts :keys [path]}]
                                                      (v/html [:thead.border-b.border-gray-300.dark:border-slate-700
                                                               (into [:tr]
                                                                     (map-indexed (fn [i k] [:th.relative.pl-6.pr-2.py-1.align-bottom.font-medium
                                                                                             {#_#_:class (if (number? (get-in header-row [0 i])) "text-right" "text-left")
-                                                                                             :title (if (or (string? k) (keyword? k)) (name k) (str k))}
+                                                                                             #_#_:title (let [k (:nextjournal/value k)] (if (or (string? k) (keyword? k)) (name k) (str k)))}
                                                                                             [:div.flex.items-center
                                                                                              (v/inspect opts k)
                                                                                              #_(when (= sort-index i)
                                                                                                  [:span.inline-flex.justify-center.items-center.relative
                                                                                                   {:style {:font-size 20 :width 10 :height 10 :top -2}}
                                                                                                   (if (= sort-order :asc) "▴" "▾")])]])) header-row)]))}
+                    {:name :table/body :fetch-opts {:n 5} :render-fn '(fn [rows opts] (v/html [:tbody
+                                                                                               (into [:<>] (map-indexed (fn [idx row] (v/inspect (update opts :path conj idx) row))) rows)]))}
                     {:name :table/row :render-fn '(fn [row {:as opts :keys [path]}]
-                                                    (v/html [:tbody (into [:tr.hover:bg-gray-200.dark:hover:bg-slate-700
-                                                                           {:class (if (even? (peek path)) "bg-black/5 dark:bg-gray-800" "bg-white dark:bg-gray-900")}]
-                                                                          (map (fn [cell] [:td.pl-6.pr-2.py-1 (v/inspect opts cell)])) row)]))}
+                                                    (v/html (into [:tr.hover:bg-gray-200.dark:hover:bg-slate-700
+                                                                   {:class (if (even? (peek path)) "bg-black/5 dark:bg-gray-800" "bg-white dark:bg-gray-900")}]
+                                                                  (map (fn [cell] [:td.pl-6.pr-2.py-1 (v/inspect opts cell)])) row)))}
                     {:pred #{:nextjournal/missing} :render-fn '(fn [x] (v/html [:<>]))}])))
 
+with-viewer
 
 ^{:nextjournal.clerk/viewer :hide-result}
 (def my-table
@@ -51,8 +59,8 @@
                                           (let [viewers (update-table-viewers' viewers)]
                                             (-> wrapped-value
                                                 (assoc :nextjournal/viewers viewers)
-                                                (assoc :nextjournal/value (cond->> (map #(->> % (ensure-wrapped-with-viewers viewers) (with-viewer :table/row)) rows)
-                                                                            (seq head) (cons (->> head (ensure-wrapped-with-viewers viewers) (with-viewer :table/head)))))
+                                                (assoc :nextjournal/value [(when head (with-viewer :table/head {::clerk/viewers viewers} head))
+                                                                           (with-viewer :table/body {::clerk/viewers viewers} (map (partial with-viewer :table/row {::clerk/viewers viewers}) rows))])
                                                 (assoc :nextjournal/viewer :table/markup)))
                                           (-> wrapped-value
                                               assoc-reduced
@@ -61,6 +69,7 @@
 
 
 ;; ## The simplest example, no header.
+
 (my-table [[1 2] [3 4]])
 
 (my-table {:head ["num" "foo"] :rows [[1 2] [3 4]]})
