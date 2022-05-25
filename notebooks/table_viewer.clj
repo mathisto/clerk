@@ -6,29 +6,70 @@
 (ns ^:nextjournal.clerk/no-cache table-viewer
   (:require [nextjournal.clerk.viewer :refer :all]))
 
+
+#_[:table.text-xs.sans-serif.text-gray-900.dark:text-white.not-prose
+   (when head
+     [:thead.border-b.border-gray-300.dark:border-slate-700
+      (into [:tr]
+            (map-indexed (fn [i k]
+                           [:th.relative.pl-6.pr-2.py-1.align-bottom.font-medium
+                            {:class (if (number? (get-in rows [0 i])) "text-right" "text-left")
+                             :title (if (or (string? k) (keyword? k)) (name k) (str k))}
+                            [:div.flex.items-center
+                             (if (or (string? k) (keyword? k)) (name k) [inspect k])
+                             (when (= sort-index i)
+                               [:span.inline-flex.justify-center.items-center.relative
+                                {:style {:font-size 20 :width 10 :height 10 :top -2}}
+                                (if (= sort-order :asc) "▴" "▾")])]]) head))])
+   (into [:tbody]
+         (map-indexed (fn [i row]
+                        (if (= :elision (-> row viewer/->viewer :name))
+                          (let [{:as fetch-opts :keys [remaining unbounded?]} (viewer/->value row)]
+                            [view-context/consume :fetch-fn
+                             (fn [fetch-fn]
+                               [:tr.border-t.dark:border-slate-700
+                                [:td.text-center.py-1
+                                 {:col-span num-cols
+                                  :class (if (fn? fetch-fn)
+                                           "bg-indigo-50 hover:bg-indigo-100 dark:bg-gray-800 dark:hover:bg-slate-700 cursor-pointer"
+                                           "text-gray-400 text-slate-500")
+                                  :on-click #(when (fn? fetch-fn)
+                                               (fetch-fn fetch-opts))}
+                                 remaining (when unbounded? "+") (if (fn? fetch-fn) " more…" " more elided")]])])
+                          (let [row (viewer/->value row)]
+                            (into
+                             [:tr.hover:bg-gray-200.dark:hover:bg-slate-700
+                              {:class (if (even? i) "bg-black/5 dark:bg-gray-800" "bg-white dark:bg-gray-900")}]
+                             (map-indexed (fn [j d]
+                                            [:td.pl-6.pr-2.py-1
+                                             {:class [(when (number? d) "text-right")
+                                                      (when (= j sort-index) "bg-black/5 dark:bg-gray-800")]}
+                                             [inspect (update opts :path conj i j) d]]) row))))) (viewer/->value rows)))]
+
+
 ^{:nextjournal.clerk/viewer :hide-result}
 (defn update-table-viewers' [viewers]
   (-> viewers
       (update-viewers {(comp #{:elision} :name) #(assoc % :render-fn '(fn [_] (v/html "…")))
                        (comp #{string?} :pred) #(assoc % :render-fn (quote v/string-viewer))
                        (comp #{number?} :pred) #(assoc % :render-fn '(fn [x] (v/html [:span.tabular-nums (if (js/Number.isNaN x) "NaN" (str x))])))})
-      (add-viewers [{:pred #{:nextjournal/missing} :render-fn '(fn [x] (v/html [:<>]))}
-                    {:name :table-col ;; TODO: describe cells
-                     :render-fn '(fn [col] (v/html [:td col]))}
-                    {:name :table-row
-                     :transform-fn (update-value (partial map (partial with-viewer :table-col)))
-                     :render-fn '(fn [col opts] (v/html (into [:tr] (v/inspect-children opts) col)))}])))
+      (add-viewers [{:name :table-markup :fetch-opts {:n 5} :render-fn '(fn [rows opts] (v/html [:table (into [:tbody] (map-indexed (fn [idx row] (v/inspect (update opts :path conj idx) row))) rows)]))}
+                    {:name :tr :render-fn '(fn [row {:as opts :keys [path]}]
+                                             (v/html (into [:tr.hover:bg-gray-200.dark:hover:bg-slate-700
+                                                            {:class (if (even? (peek path)) "bg-black/5 dark:bg-gray-800" "bg-white dark:bg-gray-900")}]
+                                                           (map (fn [cell] [:td.pl-6.pr-2.py-1 (v/inspect opts cell)])) row)))}
+                    {:pred #{:nextjournal/missing} :render-fn '(fn [x] (v/html [:<>]))}])))
+
 
 ^{:nextjournal.clerk/viewer :hide-result}
 (def my-table
   (partial with-viewer {:transform-fn (fn [{:as wrapped-value :nextjournal/keys [viewers] :keys [offset path current-path]}]
                                         (if-let [{:keys [head rows]} (normalize-table-data (->value wrapped-value))]
-                                          (-> wrapped-value
-                                              (assoc :nextjournal/value (map (partial with-viewer :table-row) rows))
-                                              (assoc :nextjournal/viewer {:render-fn '(fn [rows opts] (v/html (into [:table.text-xs.sans-serif.text-gray-900.dark:text-white.not-prose]
-                                                                                                                    (v/inspect-children opts)
-                                                                                                                    rows)))})
-                                              (update :nextjournal/viewers update-table-viewers'))
+                                          (let [viewers (update-table-viewers' viewers)]
+                                            (-> wrapped-value
+                                                (assoc :nextjournal/viewers viewers)
+                                                (assoc :nextjournal/value (map #(->> % (ensure-wrapped-with-viewers viewers) (with-viewer :tr)) rows))
+                                                (assoc :nextjournal/viewer :table-markup)))
                                           (-> wrapped-value
                                               assoc-reduced
                                               (assoc :nextjournal/value [(describe wrapped-value)])
@@ -36,11 +77,15 @@
 
 
 ;; ## The simplest example, no header.
-(my-table [[1 2] [3 4]])
+(my-table (map-indexed #(vector (inc %1) %2) (->> "/usr/share/dict/words" slurp clojure.string/split-lines (take 30))))
 
+
+#_(do (prn :===================)
+      (describe (my-table [[1 2]])))
 
 ;; ## An error
-(my-table #{1 2 3})
+#_(my-table #{1 2 3})
 
 #_(describe (my-table [[1 2] [3 4]]))
 
+#_(def d (comp count-viewers describe))
