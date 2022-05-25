@@ -23,37 +23,36 @@
                                 (if (= sort-order :asc) "▴" "▾")])]]) head))])
    (into [:tbody]
          (map-indexed (fn [i row]
-                        (if (= :elision (-> row viewer/->viewer :name))
-                          (let [{:as fetch-opts :keys [remaining unbounded?]} (viewer/->value row)]
-                            [view-context/consume :fetch-fn
-                             (fn [fetch-fn]
-                               [:tr.border-t.dark:border-slate-700
-                                [:td.text-center.py-1
-                                 {:col-span num-cols
-                                  :class (if (fn? fetch-fn)
-                                           "bg-indigo-50 hover:bg-indigo-100 dark:bg-gray-800 dark:hover:bg-slate-700 cursor-pointer"
-                                           "text-gray-400 text-slate-500")
-                                  :on-click #(when (fn? fetch-fn)
-                                               (fetch-fn fetch-opts))}
-                                 remaining (when unbounded? "+") (if (fn? fetch-fn) " more…" " more elided")]])])
-                          (let [row (viewer/->value row)]
-                            (into
-                             [:tr.hover:bg-gray-200.dark:hover:bg-slate-700
-                              {:class (if (even? i) "bg-black/5 dark:bg-gray-800" "bg-white dark:bg-gray-900")}]
-                             (map-indexed (fn [j d]
-                                            [:td.pl-6.pr-2.py-1
-                                             {:class [(when (number? d) "text-right")
-                                                      (when (= j sort-index) "bg-black/5 dark:bg-gray-800")]}
-                                             [inspect (update opts :path conj i j) d]]) row))))) (viewer/->value rows)))]
+                        (let [row (viewer/->value row)]
+                          (into
+                           [:tr.hover:bg-gray-200.dark:hover:bg-slate-700
+                            {:class (if (even? i) "bg-black/5 dark:bg-gray-800" "bg-white dark:bg-gray-900")}]
+                           (map-indexed (fn [j d]
+                                          [:td.pl-6.pr-2.py-1
+                                           {:class [(when (number? d) "text-right")
+                                                    (when (= j sort-index) "bg-black/5 dark:bg-gray-800")]}
+                                           [inspect (update opts :path conj i j) d]]) row)))) (viewer/->value rows)))]
 
 
 ^{:nextjournal.clerk/viewer :hide-result}
 (defn update-table-viewers' [viewers]
   (-> viewers
-      (update-viewers {(comp #{:elision} :name) #(assoc % :render-fn '(fn [_] (v/html "…")))
+      (update-viewers {(comp #{:elision} :name) #(assoc % :render-fn '(fn [{:as fetch-opts :keys [total offset unbounded?]}]
+                                                                        (v/html
+                                                                         [v/consume-view-context :fetch-fn (fn [fetch-fn]
+                                                                                                             [:tr.border-t.dark:border-slate-700
+                                                                                                              [:td.text-center.py-1
+                                                                                                               {:col-span #_#_num-cols FIXME 2
+                                                                                                                :class (if (fn? fetch-fn)
+                                                                                                                         "bg-indigo-50 hover:bg-indigo-100 dark:bg-gray-800 dark:hover:bg-slate-700 cursor-pointer"
+                                                                                                                         "text-gray-400 text-slate-500")
+                                                                                                                :on-click #(when (fn? fetch-fn)
+                                                                                                                             (fetch-fn fetch-opts))}
+                                                                                                               (- total offset) (when unbounded? "+") (if (fn? fetch-fn) " more…" " more elided")]])])))
                        (comp #{string?} :pred) #(assoc % :render-fn (quote v/string-viewer))
                        (comp #{number?} :pred) #(assoc % :render-fn '(fn [x] (v/html [:span.tabular-nums (if (js/Number.isNaN x) "NaN" (str x))])))})
-      (add-viewers [{:name :table-markup :fetch-opts {:n 5} :render-fn '(fn [rows opts] (v/html [:table (into [:tbody] (map-indexed (fn [idx row] (v/inspect (update opts :path conj idx) row))) rows)]))}
+      (add-viewers [{:name :table-markup :fetch-opts {:n 5} :render-fn '(fn [rows opts] (v/html [:table.text-xs.sans-serif.text-gray-900.dark:text-white.not-prose
+                                                                                                 (into [:tbody] (map-indexed (fn [idx row] (v/inspect (update opts :path conj idx) row))) rows)]))}
                     {:name :tr :render-fn '(fn [row {:as opts :keys [path]}]
                                              (v/html (into [:tr.hover:bg-gray-200.dark:hover:bg-slate-700
                                                             {:class (if (even? (peek path)) "bg-black/5 dark:bg-gray-800" "bg-white dark:bg-gray-900")}]

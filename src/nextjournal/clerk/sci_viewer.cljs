@@ -1122,7 +1122,8 @@ black")}]))}
 
    'doc-url doc-url
    'url-for url-for
-   'read-string read-string})
+   'read-string read-string
+   'consume-view-context view-context/consume}) ;; TODO: consider name
 
 (defonce !sci-ctx
   (atom (sci/init {:async? true
