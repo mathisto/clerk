@@ -6,34 +6,6 @@
 (ns ^:nextjournal.clerk/no-cache table-viewer
   (:require [nextjournal.clerk.viewer :refer :all]))
 
-
-#_[:table.text-xs.sans-serif.text-gray-900.dark:text-white.not-prose
-   (when head
-     [:thead.border-b.border-gray-300.dark:border-slate-700
-      (into [:tr]
-            (map-indexed (fn [i k]
-                           [:th.relative.pl-6.pr-2.py-1.align-bottom.font-medium
-                            {:class (if (number? (get-in rows [0 i])) "text-right" "text-left")
-                             :title (if (or (string? k) (keyword? k)) (name k) (str k))}
-                            [:div.flex.items-center
-                             (if (or (string? k) (keyword? k)) (name k) [inspect k])
-                             (when (= sort-index i)
-                               [:span.inline-flex.justify-center.items-center.relative
-                                {:style {:font-size 20 :width 10 :height 10 :top -2}}
-                                (if (= sort-order :asc) "▴" "▾")])]]) head))])
-   (into [:tbody]
-         (map-indexed (fn [i row]
-                        (let [row (viewer/->value row)]
-                          (into
-                           [:tr.hover:bg-gray-200.dark:hover:bg-slate-700
-                            {:class (if (even? i) "bg-black/5 dark:bg-gray-800" "bg-white dark:bg-gray-900")}]
-                           (map-indexed (fn [j d]
-                                          [:td.pl-6.pr-2.py-1
-                                           {:class [(when (number? d) "text-right")
-                                                    (when (= j sort-index) "bg-black/5 dark:bg-gray-800")]}
-                                           [inspect (update opts :path conj i j) d]]) row)))) (viewer/->value rows)))]
-
-
 ^{:nextjournal.clerk/viewer :hide-result}
 (defn update-table-viewers' [viewers]
   (-> viewers
@@ -46,17 +18,29 @@
                                                                                                                 :class (if (fn? fetch-fn)
                                                                                                                          "bg-indigo-50 hover:bg-indigo-100 dark:bg-gray-800 dark:hover:bg-slate-700 cursor-pointer"
                                                                                                                          "text-gray-400 text-slate-500")
-                                                                                                                :on-click #(when (fn? fetch-fn)
-                                                                                                                             (fetch-fn fetch-opts))}
+                                                                                                                :on-click (fn [_] (when (fn? fetch-fn)
+                                                                                                                                    (fetch-fn fetch-opts)))}
                                                                                                                (- total offset) (when unbounded? "+") (if (fn? fetch-fn) " more…" " more elided")]])])))
                        (comp #{string?} :pred) #(assoc % :render-fn (quote v/string-viewer))
                        (comp #{number?} :pred) #(assoc % :render-fn '(fn [x] (v/html [:span.tabular-nums (if (js/Number.isNaN x) "NaN" (str x))])))})
-      (add-viewers [{:name :table-markup :fetch-opts {:n 5} :render-fn '(fn [rows opts] (v/html [:table.text-xs.sans-serif.text-gray-900.dark:text-white.not-prose
-                                                                                                 (into [:tbody] (map-indexed (fn [idx row] (v/inspect (update opts :path conj idx) row))) rows)]))}
-                    {:name :tr :render-fn '(fn [row {:as opts :keys [path]}]
-                                             (v/html (into [:tr.hover:bg-gray-200.dark:hover:bg-slate-700
-                                                            {:class (if (even? (peek path)) "bg-black/5 dark:bg-gray-800" "bg-white dark:bg-gray-900")}]
-                                                           (map (fn [cell] [:td.pl-6.pr-2.py-1 (v/inspect opts cell)])) row)))}
+      (add-viewers [{:name :table/markup :fetch-opts {:n 5} :render-fn '(fn [rows opts] (v/html [:table.text-xs.sans-serif.text-gray-900.dark:text-white.not-prose
+                                                                                                 (into [:<>] (map-indexed (fn [idx row] (v/inspect (update opts :path conj idx) row))) rows)]))}
+                    {:name :table/head :render-fn '(fn [header-row {:as opts :keys [path]}]
+                                                     (v/html [:thead.border-b.border-gray-300.dark:border-slate-700
+                                                              (into [:tr]
+                                                                    (map-indexed (fn [i k] [:th.relative.pl-6.pr-2.py-1.align-bottom.font-medium
+                                                                                            {#_#_:class (if (number? (get-in header-row [0 i])) "text-right" "text-left")
+                                                                                             :title (if (or (string? k) (keyword? k)) (name k) (str k))}
+                                                                                            [:div.flex.items-center
+                                                                                             (v/inspect opts k)
+                                                                                             #_(when (= sort-index i)
+                                                                                                 [:span.inline-flex.justify-center.items-center.relative
+                                                                                                  {:style {:font-size 20 :width 10 :height 10 :top -2}}
+                                                                                                  (if (= sort-order :asc) "▴" "▾")])]])) header-row)]))}
+                    {:name :table/row :render-fn '(fn [row {:as opts :keys [path]}]
+                                                    (v/html [:tbody (into [:tr.hover:bg-gray-200.dark:hover:bg-slate-700
+                                                                           {:class (if (even? (peek path)) "bg-black/5 dark:bg-gray-800" "bg-white dark:bg-gray-900")}]
+                                                                          (map (fn [cell] [:td.pl-6.pr-2.py-1 (v/inspect opts cell)])) row)]))}
                     {:pred #{:nextjournal/missing} :render-fn '(fn [x] (v/html [:<>]))}])))
 
 
@@ -67,8 +51,9 @@
                                           (let [viewers (update-table-viewers' viewers)]
                                             (-> wrapped-value
                                                 (assoc :nextjournal/viewers viewers)
-                                                (assoc :nextjournal/value (map #(->> % (ensure-wrapped-with-viewers viewers) (with-viewer :tr)) rows))
-                                                (assoc :nextjournal/viewer :table-markup)))
+                                                (assoc :nextjournal/value (cond->> (map #(->> % (ensure-wrapped-with-viewers viewers) (with-viewer :table/row)) rows)
+                                                                            (seq head) (cons (->> head (ensure-wrapped-with-viewers viewers) (with-viewer :table/head)))))
+                                                (assoc :nextjournal/viewer :table/markup)))
                                           (-> wrapped-value
                                               assoc-reduced
                                               (assoc :nextjournal/value [(describe wrapped-value)])
@@ -76,6 +61,10 @@
 
 
 ;; ## The simplest example, no header.
+(my-table [[1 2] [3 4]])
+
+(my-table {:head ["num" "foo"] :rows [[1 2] [3 4]]})
+
 (my-table (map-indexed #(vector (inc %1) %2) (->> "/usr/share/dict/words" slurp clojure.string/split-lines (take 30))))
 
 ;; ## Table Inside a Table
@@ -84,6 +73,8 @@
 ;; ## Table with an Image in it
 (my-table [["an image"]
            [(javax.imageio.ImageIO/read (java.net.URL. "https://etc.usf.edu/clipart/36600/36667/thermos_36667_sm.gif"))]])
+
+
 
 #_(do (prn :===================)
       (describe (my-table [[1 2]])))
