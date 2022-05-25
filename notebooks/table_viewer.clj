@@ -79,6 +79,12 @@
 ;; ## The simplest example, no header.
 (my-table (map-indexed #(vector (inc %1) %2) (->> "/usr/share/dict/words" slurp clojure.string/split-lines (take 30))))
 
+;; ## Table Inside a Table
+(my-table [[1 2] [3 (my-table [[4 5] [6 7]])]])
+
+;; ## Table with an Image in it
+(my-table [["an image"]
+           [(javax.imageio.ImageIO/read (java.net.URL. "https://etc.usf.edu/clipart/36600/36667/thermos_36667_sm.gif"))]])
 
 #_(do (prn :===================)
       (describe (my-table [[1 2]])))
