@@ -69,11 +69,18 @@
     (is (= (clerk/eval-string "(ns my-random-test-ns) (java.util.UUID/randomUUID)")
            (clerk/eval-string "(ns my-random-test-ns) (java.util.UUID/randomUUID)"))))
 
+  (testing "changes to macro affect result"
+    (let [get-last-block-result #(-> % :blocks peek :result :nextjournal/value)
+          {:as result+1 :keys [blob->result]} (clerk/eval-string               "(ns macro-test) (defmacro plus [x] (list + x 1)) (plus 1)")
+          {:as result+2}                      (clerk/eval-string blob->result  "(ns macro-test) (defmacro plus [x] (list + x 2)) (plus 1)")]
+      (is (= 2 (get-last-block-result result+1)))
+      (is (= 3 (get-last-block-result result+2)))))
+
   (testing "random expression that cannot be serialized in nippy gets cached in memory"
     (let [{:as result :keys [blob->result]} (clerk/eval-string "(ns my-random-test-ns) {inc (java.util.UUID/randomUUID)}")]
       (is (= result
              (clerk/eval-string blob->result "(ns my-random-test-ns) {inc (java.util.UUID/randomUUID)}")))))
-
+  
   (testing "random expression doesn't get cached with no-cache"
     (is (not= (clerk/eval-string "(ns ^:nextjournal.clerk/no-cache my-random-test-ns) (java.util.UUID/randomUUID)")
               (clerk/eval-string "(ns ^:nextjournal.clerk/no-cache my-random-test-ns) (java.util.UUID/randomUUID)"))))
