@@ -8,6 +8,7 @@
             [goog.string :as gstring]
             [lambdaisland.uri.normalize :as uri.normalize]
             [nextjournal.clerk.viewer :as viewer :refer [code md plotly tex vl with-viewer with-viewers]]
+            [nextjournal.clerk.parser :as clerk.parser]
             [nextjournal.devcards :as dc]
             [nextjournal.markdown.transform :as md.transform]
             [nextjournal.ui.components.d3-require :as d3-require]
