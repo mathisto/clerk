@@ -1150,3 +1150,26 @@ black")}]))}
 (swap! viewer/!viewers (fn [viewers]
                          (-> (into {} (map (juxt key (comp #(into [] (map viewer/process-render-fn) %)  val))) viewers)
                              (update :root concat js-viewers))))
+
+(dc/defcard parse-examples
+  [:div
+   (let [clj-code "(ns hello.foo)
+
+;; # This ns is _parsed_ from `cljs`
+(defn answer [] 42)
+;; ## End
+"
+         ]
+     [:div
+      [:div.viewer-code [inspect-paginated (code clj-code)]]
+      [inspect-paginated (clerk.parser/parse-clojure-string {:doc? true} clj-code)]])
+   (let [md-code "# This is a _Markdown_ file
+with some **code** inside
+```clojure
+(defn answer [] 42)
+```
+;; ## End
+"]
+     [:div
+      [:div.viewer-code.p-5 [:pre [:code md-code]] ]
+      [inspect-paginated (clerk.parser/parse-markdown-string {:doc? true} md-code)]])])
